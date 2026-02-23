@@ -6,6 +6,8 @@
 
 This contains everything you need to run your app locally.
 
+View your app live: [https://seamlessride.vercel.app/](https://seamlessride.vercel.app/)
+
 View your app in AI Studio: https://ai.studio/apps/f7a62092-fbb7-40ce-b13e-2fcfceafc6d7
 
 ## Run Locally
