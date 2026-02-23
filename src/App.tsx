@@ -880,14 +880,23 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-      const data = await res.json();
+
+      let data;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Invalid response: ${text.substring(0, 50)}...`);
+      }
+
       if (data.success) {
         onSuccess(data.user);
       } else {
         setError(data.error || "Authentication failed");
       }
-    } catch (err) {
-      setError("Network error");
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setError(err.message === "Failed to fetch" ? "Network error: Connection refused" : err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }

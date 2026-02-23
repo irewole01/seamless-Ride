@@ -15,8 +15,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // --- Database Initialization ---
-async function initDb() {
-  console.log("Checking database tables...");
+// We create tables IMMEDIATELY on script load so they are ready
+const initTables = async () => {
   try {
     await sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -26,7 +26,6 @@ async function initDb() {
         password TEXT NOT NULL
       );
     `;
-
     await sql`
       CREATE TABLE IF NOT EXISTS trips (
         id SERIAL PRIMARY KEY,
@@ -36,7 +35,6 @@ async function initDb() {
         price INTEGER NOT NULL
       );
     `;
-
     await sql`
       CREATE TABLE IF NOT EXISTS reservations (
         id SERIAL PRIMARY KEY,
@@ -47,56 +45,18 @@ async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
-
-    // Seed trips if none exist
-    const { rows } = await sql`SELECT COUNT(*) as count FROM trips`;
-    const tripCount = parseInt(rows[0]?.count || "0");
-
-    if (tripCount === 0) {
-      console.log("Seeding database with trips...");
-      const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
-      const tripsToInsert = [];
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      for (const origin of locations) {
-        for (const dest of locations) {
-          if (origin !== dest) {
-            for (let i = 0; i < 20; i++) {
-              const date = new Date(today);
-              date.setDate(today.getDate() + i);
-              const dateStr = date.toISOString().split('T')[0];
-              tripsToInsert.push({ origin, dest, dateStr, price: 15000 });
-            }
-          }
-        }
-      }
-
-      // Insert in chunks
-      for (let i = 0; i < tripsToInsert.length; i += 20) {
-        const chunk = tripsToInsert.slice(i, i + 20);
-        await Promise.all(chunk.map(t =>
-          sql`INSERT INTO trips (origin, destination, departure_date, price) VALUES (${t.origin}, ${t.dest}, ${t.dateStr}, ${t.price})`
-        ));
-      }
-
-      console.log(`Database seeded successfully with ${tripsToInsert.length} trips.`);
-    } else {
-      console.log(`Database already contains ${tripCount} trips.`);
-    }
-  } catch (error) {
-    console.error("Database initialization failed:", error);
+    console.log("Tables verified/created.");
+  } catch (err) {
+    console.error("Critical: Table creation failed", err);
   }
-}
+};
 
-// Middleware to ensure DB is initialized
-let dbInitialized = false;
-app.use(async (req, res, next) => {
-  if (!dbInitialized && req.path.startsWith('/api')) {
-    await initDb();
-    dbInitialized = true;
-  }
+// Background init
+initTables();
+
+// Middleware to catch common errors
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
   next();
 });
 
@@ -115,6 +75,9 @@ app.use(session({
 // Auth Routes
 app.post("/api/register", async (req, res) => {
   const { fullName, matricNumber, password } = req.body;
+  if (!fullName || !matricNumber || !password) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const { rows } = await sql`
@@ -125,7 +88,12 @@ app.post("/api/register", async (req, res) => {
     res.json({ success: true, userId: rows[0].id });
   } catch (error: any) {
     console.error("Registration error:", error);
-    res.status(400).json({ error: error.message.includes("unique") ? "Matric number already registered" : "Registration failed" });
+    const msg = error.message.toLowerCase();
+    res.status(400).json({
+      error: msg.includes("unique") || msg.includes("already exists")
+        ? "Matric number already registered"
+        : "Registration failed. Try again."
+    });
   }
 });
 
@@ -143,7 +111,7 @@ app.post("/api/login", async (req, res) => {
     }
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "Login failed" });
+    res.status(500).json({ error: "Login system currently unavailable" });
   }
 });
 
@@ -171,7 +139,7 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/trips", async (req, res) => {
   const { origin, destination, date } = req.query;
   if (!origin || !destination || !date) {
-    return res.status(400).json({ error: "Missing required parameters" });
+    return res.status(400).json({ error: "Missing search criteria" });
   }
   try {
     const { rows } = await sql`
@@ -179,13 +147,48 @@ app.get("/api/trips", async (req, res) => {
       WHERE origin = ${origin as string} 
       AND destination = ${destination as string} 
       AND departure_date = ${date as string}
+      LIMIT 50
     `;
+
+    // If no trips found, run a quick seeding in background for the next request
+    if (rows.length === 0) {
+      seedTripsIfEmpty();
+    }
+
     res.json(rows);
   } catch (err) {
     console.error("Fetch trips error:", err);
-    res.status(500).json({ error: "Failed to fetch trips. Check database connection." });
+    res.status(500).json({ error: "Could not retrieve trips. Connection error." });
   }
 });
+
+const seedTripsIfEmpty = async () => {
+  try {
+    const { rows: countRows } = await sql`SELECT COUNT(*) as count FROM trips`;
+    if (parseInt(countRows[0].count) === 0) {
+      console.log("Seeding in background...");
+      const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Just seed a few for now to be fast
+      for (const origin of locations) {
+        for (const dest of locations) {
+          if (origin !== dest) {
+            for (let i = 0; i < 5; i++) { // Smaller initial batch
+              const date = new Date(today);
+              date.setDate(today.getDate() + i);
+              const dateStr = date.toISOString().split('T')[0];
+              await sql`INSERT INTO trips (origin, destination, departure_date, price) VALUES (${origin}, ${dest}, ${dateStr}, 15000)`;
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Background seeding failed", e);
+  }
+};
 
 app.get("/api/trips/:id/seats", async (req, res) => {
   try {
@@ -197,7 +200,7 @@ app.get("/api/trips/:id/seats", async (req, res) => {
     res.json(rows.map((r: any) => r.seat_number));
   } catch (err) {
     console.error("Fetch seats error:", err);
-    res.status(500).json({ error: "Failed to fetch seats" });
+    res.status(500).json({ error: "Could not fetch availability" });
   }
 });
 
@@ -205,8 +208,9 @@ app.get("/api/trips/:id/seats", async (req, res) => {
 app.post("/api/reserve", async (req, res) => {
   const { tripId, seats } = req.body;
   const userId = (req.session as any).userId;
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-  if (seats.length > 2) return res.status(400).json({ error: "Maximum 2 seats allowed" });
+  if (!userId) return res.status(401).json({ error: "Please login to reserve" });
+  if (!seats || seats.length === 0) return res.status(400).json({ error: "No seats selected" });
+  if (seats.length > 2) return res.status(400).json({ error: "Max 2 seats per booking" });
 
   try {
     for (const seat of seats) {
@@ -216,7 +220,7 @@ app.post("/api/reserve", async (req, res) => {
         AND seat_number = ${seat} 
         AND payment_status = 'paid'
       `;
-      if (rows.length > 0) throw new Error(`Seat ${seat} is already taken`);
+      if (rows.length > 0) throw new Error(`Seat ${seat} is already booked`);
 
       await sql`
         INSERT INTO reservations (user_id, trip_id, seat_number, payment_status) 
@@ -245,18 +249,16 @@ app.get("/api/my-reservations", async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error("Fetch reservations error:", err);
-    res.status(500).json({ error: "Failed to fetch reservations" });
+    res.status(500).json({ error: "Failed to load reservations" });
   }
 });
 
-// Vite middleware for development
-let viteServer: any;
+// Service Static Files
 if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   createViteServer({
     server: { middlewareMode: true },
     appType: "spa",
   }).then((vite) => {
-    viteServer = vite;
     app.use(vite.middlewares);
   });
 } else {
