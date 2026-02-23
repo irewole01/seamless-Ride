@@ -40,29 +40,25 @@ db.exec(`
   );
 `);
 
-// Seed trips if count is low
+// Seed some trips if none exist
 const tripCount = db.prepare("SELECT COUNT(*) as count FROM trips").get() as { count: number };
-if (tripCount.count < 100) {
-  // Clear existing data to ensure a fresh set of 20 buses per route
-  db.exec("DELETE FROM reservations; DELETE FROM trips; DELETE FROM sqlite_sequence WHERE name IN ('trips', 'reservations');");
-
+if (tripCount.count === 0) {
   const insertTrip = db.prepare("INSERT INTO trips (origin, destination, departure_date, price) VALUES (?, ?, ?, ?)");
   const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
-
+  const dates = ["2026-03-01", "2026-03-02", "2026-03-03"];
+  
   for (const origin of locations) {
     for (const dest of locations) {
       if (origin !== dest) {
-        // Create 20 trips for each route over the next 20 days
-        for (let i = 0; i < 20; i++) {
-          const date = new Date("2026-02-24");
-          date.setDate(date.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          insertTrip.run(origin, dest, dateStr, 15000);
+        // Only allow trips to/from Malete as per requirements
+        if (origin === "Malete Campus" || dest === "Malete Campus") {
+          for (const date of dates) {
+            insertTrip.run(origin, dest, date, 15000); // Sample price
+          }
         }
       }
     }
   }
-  console.log("Database seeded with 20 buses for all route combinations.");
 }
 
 async function startServer() {
@@ -74,7 +70,7 @@ async function startServer() {
     secret: "seamless-ride-secret-123",
     resave: false,
     saveUninitialized: false,
-    cookie: {
+    cookie: { 
       secure: process.env.NODE_ENV === "production",
       sameSite: 'none',
       httpOnly: true
@@ -144,7 +140,7 @@ async function startServer() {
         // Check if seat is already taken
         const existing = db.prepare("SELECT id FROM reservations WHERE trip_id = ? AND seat_number = ? AND payment_status = 'paid'").get(tripId, seat);
         if (existing) throw new Error(`Seat ${seat} is already taken`);
-
+        
         db.prepare("INSERT INTO reservations (user_id, trip_id, seat_number, payment_status) VALUES (?, ?, ?, 'paid')").run(userId, tripId, seat);
       }
     });

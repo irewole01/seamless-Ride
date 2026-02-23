@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  Bus,
-  MapPin,
-  Calendar,
-  User,
-  LogOut,
-  ChevronRight,
-  CheckCircle2,
+import { 
+  Bus, 
+  MapPin, 
+  Calendar, 
+  User, 
+  LogOut, 
+  ChevronRight, 
+  CheckCircle2, 
   AlertCircle,
   Armchair,
   CreditCard,
@@ -70,7 +70,7 @@ const Logo = () => (
 );
 
 const Spinner = ({ size = 20, color = "white" }: { size?: number, color?: string }) => (
-  <motion.div
+  <motion.div 
     animate={{ rotate: 360 }}
     transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
     style={{ width: size, height: size, borderColor: color, borderTopColor: 'transparent' }}
@@ -80,7 +80,7 @@ const Spinner = ({ size = 20, color = "white" }: { size?: number, color?: string
 
 export default function App() {
   const [user, setUser] = useState<UserData | null>(null);
-  const [view, setView] = useState<'home' | 'login' | 'register' | 'booking' | 'confirm' | 'reservations'>('home');
+  const [view, setView] = useState<'home' | 'login' | 'register' | 'booking' | 'confirm' | 'history'>('home');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -183,7 +183,7 @@ export default function App() {
         setSuccess("Reservation successful! Your seats are confirmed.");
         setSelectedSeats([]);
         setSelectedTrip(null);
-        setView('reservations');
+        setView('history');
         fetchReservations();
       } else {
         setError(data.error || "Payment failed");
@@ -208,7 +208,7 @@ export default function App() {
   if (loading && view === 'home') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <motion.div
+        <motion.div 
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
           className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full"
@@ -223,12 +223,12 @@ export default function App() {
 
       {/* Global Loading Overlay */}
       <AnimatePresence>
-        {loading && (
-          <motion.div
+        {loading && view !== 'home' && (
+          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-white/60 backdrop-blur-sm flex items-center justify-center"
+            className="fixed inset-0 z-[100] bg-white/40 backdrop-blur-[2px] flex items-center justify-center"
           >
             <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 border border-slate-100">
               <Spinner size={40} color="#10b981" />
@@ -237,7 +237,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-
+      
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-lg border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -248,12 +248,12 @@ export default function App() {
             <div className="flex items-center gap-4">
               {user ? (
                 <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => { fetchReservations(); setView('reservations'); }}
-                    className="text-slate-600 hover:text-emerald-600 font-medium text-sm flex items-center gap-1.5 transition-colors"
+                  <button 
+                    onClick={() => { fetchReservations(); setView('history'); }}
+                    className="text-slate-600 hover:text-emerald-600 font-medium text-sm flex items-center gap-1"
                   >
                     <History size={18} />
-                    <span className="hidden sm:inline">My Reservations</span>
+                    <span className="hidden sm:inline">My Trips</span>
                   </button>
                   <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-full">
                     <User size={16} className="text-slate-500" />
@@ -277,7 +277,7 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-4 pt-8">
         <AnimatePresence mode="wait">
           {error && (
-            <motion.div
+            <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -290,7 +290,7 @@ export default function App() {
           )}
 
           {success && (
-            <motion.div
+            <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -303,7 +303,7 @@ export default function App() {
           )}
 
           {view === 'home' && (
-            <motion.div
+            <motion.div 
               key="home"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -325,7 +325,7 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <MapPin size={14} className="text-emerald-500" /> From
                     </label>
-                    <select
+                    <select 
                       value={bookingData.origin}
                       onChange={(e) => setBookingData({ ...bookingData, origin: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -341,7 +341,7 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <MapPin size={14} className="text-emerald-500" /> To
                     </label>
-                    <select
+                    <select 
                       value={bookingData.destination}
                       onChange={(e) => setBookingData({ ...bookingData, destination: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -357,15 +357,15 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <Calendar size={14} className="text-emerald-500" /> Date
                     </label>
-                    <input
-                      type="date"
+                    <input 
+                      type="date" 
                       value={bookingData.date}
                       onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                     />
                   </div>
                 </div>
-                <button
+                <button 
                   onClick={searchTrips}
                   disabled={loading}
                   className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-70"
@@ -386,7 +386,7 @@ export default function App() {
                   <h3 className="text-xl font-bold text-slate-800">Available Buses</h3>
                   <div className="grid gap-4">
                     {availableTrips.map(trip => (
-                      <motion.div
+                      <motion.div 
                         key={trip.id}
                         whileHover={{ y: -4 }}
                         className="glass-card p-5 flex flex-col sm:flex-row justify-between items-center gap-4 cursor-pointer hover:border-emerald-200 transition-all"
@@ -420,27 +420,27 @@ export default function App() {
           )}
 
           {view === 'login' && (
-            <AuthForm
-              type="login"
-              onSuccess={(userData) => {
-                setUser(userData);
+            <AuthForm 
+              type="login" 
+              onSuccess={(userData) => { 
+                setUser(userData); 
                 if (selectedTrip) setView('booking');
-                else setView('home');
-              }}
+                else setView('home'); 
+              }} 
               onSwitch={() => setView('register')}
             />
           )}
 
           {view === 'register' && (
-            <AuthForm
-              type="register"
-              onSuccess={() => setView('login')}
+            <AuthForm 
+              type="register" 
+              onSuccess={() => setView('login')} 
               onSwitch={() => setView('login')}
             />
           )}
 
           {view === 'booking' && selectedTrip && (
-            <motion.div
+            <motion.div 
               key="booking"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -470,7 +470,7 @@ export default function App() {
                 {/* Bus Diagram */}
                 <div className="glass-card p-8 flex flex-col items-center relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/20" />
-
+                  
                   <div className="w-full max-w-[300px] bg-slate-50 rounded-[50px] p-8 border-x-8 border-t-8 border-b-[16px] border-slate-200 shadow-2xl relative">
                     {/* Windshield & Dashboard */}
                     <div className="w-full h-16 bg-slate-800 rounded-t-[40px] mb-10 flex items-center justify-between px-6 relative">
@@ -548,45 +548,52 @@ export default function App() {
                 <div className="space-y-6">
                   <div className="glass-card p-6 space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12" />
-
+                    
                     <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
                       <CreditCard className="text-emerald-500" /> Booking Summary
                     </h3>
-
+                    
                     <div className="space-y-4">
-                      <div className="grid grid-cols-1 gap-3">
-                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-2 relative overflow-hidden group hover:bg-white hover:border-emerald-200 transition-all">
-                          <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-bl-full translate-x-4 -translate-y-4 group-hover:bg-emerald-500/10 transition-colors" />
-                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            <Bus size={12} className="text-emerald-500" /> Trip Details
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            <Bus size={16} className="text-emerald-500" />
                           </div>
-                          <div className="flex justify-between items-end">
-                            <div>
-                              <p className="text-lg font-black text-slate-800">#{selectedTrip.id.toString().padStart(4, '0')}</p>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <span className="font-bold text-slate-700">{selectedTrip.origin}</span>
-                                <ChevronRight size={14} className="text-slate-300" />
-                                <span className="font-bold text-slate-700">{selectedTrip.destination}</span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Departure</p>
-                              <p className="font-bold text-slate-800">{selectedTrip.departure_date}</p>
-                            </div>
-                          </div>
+                          <span className="text-sm font-medium text-slate-500">Trip ID</span>
                         </div>
+                        <span className="font-bold text-slate-800">#{selectedTrip.id.toString().padStart(4, '0')}</span>
+                      </div>
 
-                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                              <Armchair size={16} className="text-emerald-500" />
-                            </div>
-                            <span className="text-sm font-medium text-slate-500">Selected Seats</span>
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            <MapPin size={16} className="text-emerald-500" />
                           </div>
-                          <span className="font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">
-                            {selectedSeats.length > 0 ? selectedSeats.sort((a, b) => a - b).join(', ') : 'None'}
-                          </span>
+                          <span className="text-sm font-medium text-slate-500">Route</span>
                         </div>
+                        <span className="font-bold text-slate-800">{selectedTrip.origin} → {selectedTrip.destination}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            <Calendar size={16} className="text-emerald-500" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-500">Departure</span>
+                        </div>
+                        <span className="font-bold text-slate-800">{selectedTrip.departure_date}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                            <Armchair size={16} className="text-emerald-500" />
+                          </div>
+                          <span className="text-sm font-medium text-slate-500">Seats</span>
+                        </div>
+                        <span className="font-bold text-slate-800">
+                          {selectedSeats.length > 0 ? selectedSeats.sort((a,b)=>a-b).join(', ') : 'None Selected'}
+                        </span>
                       </div>
 
                       <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
@@ -605,7 +612,7 @@ export default function App() {
                   </div>
 
                   {user ? (
-                    <button
+                    <button 
                       disabled={selectedSeats.length === 0}
                       onClick={() => setView('confirm')}
                       className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed group"
@@ -616,14 +623,14 @@ export default function App() {
                       </span>
                     </button>
                   ) : (
-                    <button
+                    <button 
                       onClick={() => setView('login')}
                       className="w-full bg-slate-800 text-white font-bold py-4 rounded-xl shadow-xl hover:bg-slate-900 transition-all"
                     >
                       Login to Complete Booking
                     </button>
                   )}
-
+                  
                   <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
                     First-come, First-served basis
                   </p>
@@ -633,7 +640,7 @@ export default function App() {
           )}
 
           {view === 'confirm' && selectedTrip && (
-            <motion.div
+            <motion.div 
               key="confirm"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -699,14 +706,14 @@ export default function App() {
                   </div>
 
                   <div className="space-y-3">
-                    <button
+                    <button 
                       onClick={handlePayment}
                       className="w-full btn-primary flex items-center justify-center gap-2"
                     >
                       <CreditCard size={20} />
                       Pay Now
                     </button>
-                    <button
+                    <button 
                       onClick={() => setView('booking')}
                       className="w-full py-3 text-slate-500 font-semibold hover:text-slate-800 transition-colors"
                     >
@@ -718,12 +725,11 @@ export default function App() {
             </motion.div>
           )}
 
-          {view === 'reservations' && (
-            <motion.div
-              key="reservations"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+          {view === 'history' && (
+            <motion.div 
+              key="history"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="space-y-6"
             >
               <div className="flex justify-between items-center">
@@ -742,55 +748,39 @@ export default function App() {
               ) : (
                 <div className="grid gap-4">
                   {myReservations.map(res => {
-                    const isUpcoming = new Date(res.departure_date) >= new Date(new Date().setHours(0, 0, 0, 0));
+                    const isUpcoming = new Date(res.departure_date) >= new Date(new Date().setHours(0,0,0,0));
                     return (
-                      <motion.div
-                        layout
-                        key={res.id}
-                        className="glass-card p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-emerald-200 transition-colors group"
-                      >
+                      <div key={res.id} className="glass-card p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="flex items-center gap-4">
                           <div className={cn(
-                            "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-transform group-hover:scale-105",
+                            "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm",
                             isUpcoming ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400"
                           )}>
-                            <div className="relative">
-                              <Bus size={28} />
-                              {isUpcoming && <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />}
-                            </div>
+                            <Bus size={24} />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="font-black text-slate-800 text-lg uppercase tracking-tight">{res.origin} <span className="text-slate-300 mx-1">→</span> {res.destination}</p>
-                              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50">#{res.trip_id.toString().padStart(4, '0')}</span>
+                              <p className="font-bold text-slate-800">{res.origin} → {res.destination}</p>
+                              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">#{res.trip_id.toString().padStart(4, '0')}</span>
                             </div>
-                            <div className="flex items-center gap-4 mt-1">
-                              <div className="flex items-center gap-1.5 text-slate-500 text-sm font-medium">
-                                <Calendar size={14} className="text-slate-400" />
-                                {res.departure_date}
-                              </div>
-                              <div className="flex items-center gap-1.5 text-slate-500 text-sm font-medium">
-                                <Armchair size={14} className="text-slate-400" />
-                                Seat {res.seat_number}
-                              </div>
-                            </div>
+                            <p className="text-sm text-slate-500">{res.departure_date} • Seat {res.seat_number}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-4 sm:pt-0">
+                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                           <div className="text-left sm:text-right">
-                            <p className="text-lg font-black text-slate-800 tracking-tighter">₦{res.price.toLocaleString()}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Paid via iRexiPay</p>
+                            <p className="text-sm font-bold text-slate-800">₦{res.price.toLocaleString()}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Paid</p>
                           </div>
                           <span className={cn(
-                            "px-4 py-1.5 text-[10px] font-black rounded-full uppercase tracking-tighter border shadow-sm",
-                            isUpcoming
-                              ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                            "px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest border",
+                            isUpcoming 
+                              ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
                               : "bg-slate-50 text-slate-400 border-slate-100"
                           )}>
-                            {isUpcoming ? 'Confirmed' : 'Completed'}
+                            {isUpcoming ? 'Upcoming' : 'Completed'}
                           </span>
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>
@@ -826,10 +816,10 @@ const Seat: React.FC<SeatProps> = ({ num, selected, occupied, onClick }) => {
       onClick={onClick}
       className={cn(
         "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative group",
-        occupied
-          ? "bg-slate-200 text-slate-400 cursor-not-allowed border-2 border-slate-300 shadow-inner"
-          : selected
-            ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 border-2 border-emerald-400 z-10"
+        occupied 
+          ? "bg-slate-200 text-slate-400 cursor-not-allowed border-2 border-slate-300 shadow-inner" 
+          : selected 
+            ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 border-2 border-emerald-400 z-10" 
             : "bg-white text-slate-600 hover:text-emerald-600 border-2 border-slate-200 hover:border-emerald-300 shadow-sm"
       )}
     >
@@ -846,11 +836,11 @@ const Seat: React.FC<SeatProps> = ({ num, selected, occupied, onClick }) => {
           {num}
         </span>
       </div>
-
+      
       {!occupied && !selected && (
         <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
       )}
-
+      
       {occupied && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-full h-[2px] bg-slate-300 rotate-45 absolute" />
@@ -859,7 +849,7 @@ const Seat: React.FC<SeatProps> = ({ num, selected, occupied, onClick }) => {
       )}
 
       {selected && (
-        <motion.div
+        <motion.div 
           layoutId="selected-glow"
           className="absolute -inset-1 bg-emerald-500/20 rounded-2xl blur-md -z-10"
         />
@@ -898,7 +888,7 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
   };
 
   return (
-    <motion.div
+    <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="max-w-md mx-auto glass-card p-8 space-y-6"
@@ -920,9 +910,9 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
         {type === 'register' && (
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase">Full Name</label>
-            <input
+            <input 
               required
-              type="text"
+              type="text" 
               placeholder="John Doe"
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -932,9 +922,9 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
         )}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase">Matric Number</label>
-          <input
+          <input 
             required
-            type="text"
+            type="text" 
             placeholder="20/00/00/000"
             value={formData.matricNumber}
             onChange={(e) => setFormData({ ...formData, matricNumber: e.target.value })}
@@ -943,18 +933,18 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase">Password</label>
-          <input
+          <input 
             required
-            type="password"
+            type="password" 
             placeholder="••••••••"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
           />
         </div>
-        <button
+        <button 
           disabled={loading}
-          type="submit"
+          type="submit" 
           className="w-full btn-primary mt-2 flex items-center justify-center gap-2"
         >
           {loading ? (
