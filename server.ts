@@ -5,12 +5,16 @@ import session from "express-session";
 import bcrypt from "bcryptjs";
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- Database Initialization ---
 async function initDb() {
+  console.log("Checking database tables...");
   try {
     await sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -42,9 +46,9 @@ async function initDb() {
       );
     `;
 
-    // Seed trips if none exist (Postgres check)
+    // Seed trips if none exist
     const { rows } = await sql`SELECT COUNT(*) as count FROM trips`;
-    const tripCount = parseInt(rows[0].count);
+    const tripCount = parseInt(rows[0]?.count || "0");
 
     if (tripCount === 0) {
       console.log("Seeding database with trips...");
@@ -67,7 +71,7 @@ async function initDb() {
         }
       }
 
-      // Insert in chunks to avoid hitting Postgres limits or timeouts
+      // Insert in chunks
       for (let i = 0; i < tripsToInsert.length; i += 20) {
         const chunk = tripsToInsert.slice(i, i + 20);
         await Promise.all(chunk.map(t =>
@@ -76,6 +80,8 @@ async function initDb() {
       }
 
       console.log(`Database seeded successfully with ${tripsToInsert.length} trips.`);
+    } else {
+      console.log(`Database already contains ${tripCount} trips.`);
     }
   } catch (error) {
     console.error("Database initialization failed:", error);
@@ -113,6 +119,7 @@ async function startServer() {
       `;
       res.json({ success: true, userId: rows[0].id });
     } catch (error: any) {
+      console.error("Registration error:", error);
       res.status(400).json({ error: error.message.includes("unique") ? "Matric number already registered" : "Registration failed" });
     }
   });
@@ -130,6 +137,7 @@ async function startServer() {
         res.status(401).json({ error: "Invalid credentials" });
       }
     } catch (err) {
+      console.error("Login error:", err);
       res.status(500).json({ error: "Login failed" });
     }
   });
@@ -137,8 +145,12 @@ async function startServer() {
   app.get("/api/me", async (req, res) => {
     const userId = (req.session as any).userId;
     if (userId) {
-      const { rows } = await sql`SELECT id, full_name as "fullName", matric_number as "matricNumber" FROM users WHERE id = ${userId}`;
-      res.json({ user: rows[0] });
+      try {
+        const { rows } = await sql`SELECT id, full_name as "fullName", matric_number as "matricNumber" FROM users WHERE id = ${userId}`;
+        res.json({ user: rows[0] });
+      } catch (err) {
+        res.json({ user: null });
+      }
     } else {
       res.json({ user: null });
     }
@@ -153,6 +165,9 @@ async function startServer() {
   // Trip Routes
   app.get("/api/trips", async (req, res) => {
     const { origin, destination, date } = req.query;
+    if (!origin || !destination || !date) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
     try {
       const { rows } = await sql`
         SELECT * FROM trips 
@@ -162,7 +177,8 @@ async function startServer() {
       `;
       res.json(rows);
     } catch (err) {
-      res.status(500).json({ error: "Failed to fetch trips" });
+      console.error("Fetch trips error:", err);
+      res.status(500).json({ error: "Failed to fetch trips. Check database connection." });
     }
   });
 
@@ -175,6 +191,7 @@ async function startServer() {
       `;
       res.json(rows.map((r: any) => r.seat_number));
     } catch (err) {
+      console.error("Fetch seats error:", err);
       res.status(500).json({ error: "Failed to fetch seats" });
     }
   });
@@ -187,8 +204,6 @@ async function startServer() {
     if (seats.length > 2) return res.status(400).json({ error: "Maximum 2 seats allowed" });
 
     try {
-      // In Postgres we don't have a simple synchronous transaction block like better-sqlite3
-      // For simplicity in this demo, we'll do individual checks, but in production use a BEGIN/COMMIT block.
       for (const seat of seats) {
         const { rows } = await sql`
           SELECT id FROM reservations 
@@ -205,6 +220,7 @@ async function startServer() {
       }
       res.json({ success: true });
     } catch (error: any) {
+      console.error("Reservation error:", error);
       res.status(400).json({ error: error.message });
     }
   });
@@ -223,6 +239,7 @@ async function startServer() {
       `;
       res.json(rows);
     } catch (err) {
+      console.error("Fetch reservations error:", err);
       res.status(500).json({ error: "Failed to fetch reservations" });
     }
   });
