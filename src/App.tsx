@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Bus, 
-  MapPin, 
-  Calendar, 
-  User, 
-  LogOut, 
-  ChevronRight, 
-  CheckCircle2, 
+import {
+  Bus,
+  MapPin,
+  Calendar,
+  User,
+  LogOut,
+  ChevronRight,
+  CheckCircle2,
   AlertCircle,
   Armchair,
   CreditCard,
@@ -70,7 +70,7 @@ const Logo = () => (
 );
 
 const Spinner = ({ size = 20, color = "white" }: { size?: number, color?: string }) => (
-  <motion.div 
+  <motion.div
     animate={{ rotate: 360 }}
     transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
     style={{ width: size, height: size, borderColor: color, borderTopColor: 'transparent' }}
@@ -128,14 +128,20 @@ export default function App() {
     try {
       const res = await fetch(`/api/trips?origin=${bookingData.origin}&destination=${bookingData.destination}&date=${bookingData.date}`);
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server responded with ${res.status}`);
+      }
+
       setAvailableTrips(data);
       if (data.length === 0) {
         setError("No trips found for the selected route and date.");
       } else {
         setError(null);
       }
-    } catch (err) {
-      setError("Failed to search trips");
+    } catch (err: any) {
+      console.error("Search error:", err);
+      setError(`Search failed: ${err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -208,7 +214,7 @@ export default function App() {
   if (loading && view === 'home') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <motion.div 
+        <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
           className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full"
@@ -224,7 +230,7 @@ export default function App() {
       {/* Global Loading Overlay */}
       <AnimatePresence>
         {loading && view !== 'home' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -237,7 +243,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-lg border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -248,7 +254,7 @@ export default function App() {
             <div className="flex items-center gap-4">
               {user ? (
                 <div className="flex items-center gap-4">
-                  <button 
+                  <button
                     onClick={() => { fetchReservations(); setView('history'); }}
                     className="text-slate-600 hover:text-emerald-600 font-medium text-sm flex items-center gap-1"
                   >
@@ -277,7 +283,7 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-4 pt-8">
         <AnimatePresence mode="wait">
           {error && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -290,7 +296,7 @@ export default function App() {
           )}
 
           {success && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -303,7 +309,7 @@ export default function App() {
           )}
 
           {view === 'home' && (
-            <motion.div 
+            <motion.div
               key="home"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -325,7 +331,7 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <MapPin size={14} className="text-emerald-500" /> From
                     </label>
-                    <select 
+                    <select
                       value={bookingData.origin}
                       onChange={(e) => setBookingData({ ...bookingData, origin: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -341,7 +347,7 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <MapPin size={14} className="text-emerald-500" /> To
                     </label>
-                    <select 
+                    <select
                       value={bookingData.destination}
                       onChange={(e) => setBookingData({ ...bookingData, destination: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
@@ -357,15 +363,15 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <Calendar size={14} className="text-emerald-500" /> Date
                     </label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={bookingData.date}
                       onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                     />
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={searchTrips}
                   disabled={loading}
                   className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-70"
@@ -386,7 +392,7 @@ export default function App() {
                   <h3 className="text-xl font-bold text-slate-800">Available Buses</h3>
                   <div className="grid gap-4">
                     {availableTrips.map(trip => (
-                      <motion.div 
+                      <motion.div
                         key={trip.id}
                         whileHover={{ y: -4 }}
                         className="glass-card p-5 flex flex-col sm:flex-row justify-between items-center gap-4 cursor-pointer hover:border-emerald-200 transition-all"
@@ -420,27 +426,27 @@ export default function App() {
           )}
 
           {view === 'login' && (
-            <AuthForm 
-              type="login" 
-              onSuccess={(userData) => { 
-                setUser(userData); 
+            <AuthForm
+              type="login"
+              onSuccess={(userData) => {
+                setUser(userData);
                 if (selectedTrip) setView('booking');
-                else setView('home'); 
-              }} 
+                else setView('home');
+              }}
               onSwitch={() => setView('register')}
             />
           )}
 
           {view === 'register' && (
-            <AuthForm 
-              type="register" 
-              onSuccess={() => setView('login')} 
+            <AuthForm
+              type="register"
+              onSuccess={() => setView('login')}
               onSwitch={() => setView('login')}
             />
           )}
 
           {view === 'booking' && selectedTrip && (
-            <motion.div 
+            <motion.div
               key="booking"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -470,7 +476,7 @@ export default function App() {
                 {/* Bus Diagram */}
                 <div className="glass-card p-8 flex flex-col items-center relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/20" />
-                  
+
                   <div className="w-full max-w-[300px] bg-slate-50 rounded-[50px] p-8 border-x-8 border-t-8 border-b-[16px] border-slate-200 shadow-2xl relative">
                     {/* Windshield & Dashboard */}
                     <div className="w-full h-16 bg-slate-800 rounded-t-[40px] mb-10 flex items-center justify-between px-6 relative">
@@ -548,11 +554,11 @@ export default function App() {
                 <div className="space-y-6">
                   <div className="glass-card p-6 space-y-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12" />
-                    
+
                     <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
                       <CreditCard className="text-emerald-500" /> Booking Summary
                     </h3>
-                    
+
                     <div className="space-y-4">
                       <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                         <div className="flex items-center gap-3">
@@ -592,7 +598,7 @@ export default function App() {
                           <span className="text-sm font-medium text-slate-500">Seats</span>
                         </div>
                         <span className="font-bold text-slate-800">
-                          {selectedSeats.length > 0 ? selectedSeats.sort((a,b)=>a-b).join(', ') : 'None Selected'}
+                          {selectedSeats.length > 0 ? selectedSeats.sort((a, b) => a - b).join(', ') : 'None Selected'}
                         </span>
                       </div>
 
@@ -612,7 +618,7 @@ export default function App() {
                   </div>
 
                   {user ? (
-                    <button 
+                    <button
                       disabled={selectedSeats.length === 0}
                       onClick={() => setView('confirm')}
                       className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed group"
@@ -623,14 +629,14 @@ export default function App() {
                       </span>
                     </button>
                   ) : (
-                    <button 
+                    <button
                       onClick={() => setView('login')}
                       className="w-full bg-slate-800 text-white font-bold py-4 rounded-xl shadow-xl hover:bg-slate-900 transition-all"
                     >
                       Login to Complete Booking
                     </button>
                   )}
-                  
+
                   <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
                     First-come, First-served basis
                   </p>
@@ -640,7 +646,7 @@ export default function App() {
           )}
 
           {view === 'confirm' && selectedTrip && (
-            <motion.div 
+            <motion.div
               key="confirm"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -706,14 +712,14 @@ export default function App() {
                   </div>
 
                   <div className="space-y-3">
-                    <button 
+                    <button
                       onClick={handlePayment}
                       className="w-full btn-primary flex items-center justify-center gap-2"
                     >
                       <CreditCard size={20} />
                       Pay Now
                     </button>
-                    <button 
+                    <button
                       onClick={() => setView('booking')}
                       className="w-full py-3 text-slate-500 font-semibold hover:text-slate-800 transition-colors"
                     >
@@ -726,7 +732,7 @@ export default function App() {
           )}
 
           {view === 'history' && (
-            <motion.div 
+            <motion.div
               key="history"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -748,7 +754,7 @@ export default function App() {
               ) : (
                 <div className="grid gap-4">
                   {myReservations.map(res => {
-                    const isUpcoming = new Date(res.departure_date) >= new Date(new Date().setHours(0,0,0,0));
+                    const isUpcoming = new Date(res.departure_date) >= new Date(new Date().setHours(0, 0, 0, 0));
                     return (
                       <div key={res.id} className="glass-card p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="flex items-center gap-4">
@@ -773,8 +779,8 @@ export default function App() {
                           </div>
                           <span className={cn(
                             "px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest border",
-                            isUpcoming 
-                              ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                            isUpcoming
+                              ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                               : "bg-slate-50 text-slate-400 border-slate-100"
                           )}>
                             {isUpcoming ? 'Upcoming' : 'Completed'}
@@ -816,10 +822,10 @@ const Seat: React.FC<SeatProps> = ({ num, selected, occupied, onClick }) => {
       onClick={onClick}
       className={cn(
         "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative group",
-        occupied 
-          ? "bg-slate-200 text-slate-400 cursor-not-allowed border-2 border-slate-300 shadow-inner" 
-          : selected 
-            ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 border-2 border-emerald-400 z-10" 
+        occupied
+          ? "bg-slate-200 text-slate-400 cursor-not-allowed border-2 border-slate-300 shadow-inner"
+          : selected
+            ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 border-2 border-emerald-400 z-10"
             : "bg-white text-slate-600 hover:text-emerald-600 border-2 border-slate-200 hover:border-emerald-300 shadow-sm"
       )}
     >
@@ -836,11 +842,11 @@ const Seat: React.FC<SeatProps> = ({ num, selected, occupied, onClick }) => {
           {num}
         </span>
       </div>
-      
+
       {!occupied && !selected && (
         <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
       )}
-      
+
       {occupied && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-full h-[2px] bg-slate-300 rotate-45 absolute" />
@@ -849,7 +855,7 @@ const Seat: React.FC<SeatProps> = ({ num, selected, occupied, onClick }) => {
       )}
 
       {selected && (
-        <motion.div 
+        <motion.div
           layoutId="selected-glow"
           className="absolute -inset-1 bg-emerald-500/20 rounded-2xl blur-md -z-10"
         />
@@ -888,7 +894,7 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="max-w-md mx-auto glass-card p-8 space-y-6"
@@ -910,9 +916,9 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
         {type === 'register' && (
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase">Full Name</label>
-            <input 
+            <input
               required
-              type="text" 
+              type="text"
               placeholder="John Doe"
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -922,9 +928,9 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
         )}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase">Matric Number</label>
-          <input 
+          <input
             required
-            type="text" 
+            type="text"
             placeholder="20/00/00/000"
             value={formData.matricNumber}
             onChange={(e) => setFormData({ ...formData, matricNumber: e.target.value })}
@@ -933,18 +939,18 @@ function AuthForm({ type, onSuccess, onSwitch }: { type: 'login' | 'register', o
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-500 uppercase">Password</label>
-          <input 
+          <input
             required
-            type="password" 
+            type="password"
             placeholder="••••••••"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
           />
         </div>
-        <button 
+        <button
           disabled={loading}
-          type="submit" 
+          type="submit"
           className="w-full btn-primary mt-2 flex items-center justify-center gap-2"
         >
           {loading ? (
