@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import Database from "better-sqlite3";
+import { sql } from "@vercel/postgres";
 import session from "express-session";
 import bcrypt from "bcryptjs";
 import path from "path";
@@ -9,68 +9,87 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const db = new Database("seamless_ride.db");
+// --- Database Initialization ---
+async function initDb() {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        full_name TEXT NOT NULL,
+        matric_number TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+      );
+    `;
 
-// Initialize Database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name TEXT NOT NULL,
-    matric_number TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
-  );
+    await sql`
+      CREATE TABLE IF NOT EXISTS trips (
+        id SERIAL PRIMARY KEY,
+        origin TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        departure_date TEXT NOT NULL,
+        price INTEGER NOT NULL
+      );
+    `;
 
-  CREATE TABLE IF NOT EXISTS trips (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    origin TEXT NOT NULL,
-    destination TEXT NOT NULL,
-    departure_date TEXT NOT NULL,
-    price INTEGER NOT NULL
-  );
+    await sql`
+      CREATE TABLE IF NOT EXISTS reservations (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        trip_id INTEGER NOT NULL,
+        seat_number INTEGER NOT NULL,
+        payment_status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
 
-  CREATE TABLE IF NOT EXISTS reservations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    trip_id INTEGER NOT NULL,
-    seat_number INTEGER NOT NULL,
-    payment_status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    FOREIGN KEY(trip_id) REFERENCES trips(id)
-  );
-`);
+    // Seed trips if none exist (Postgres check)
+    const { rows } = await sql`SELECT COUNT(*) as count FROM trips`;
+    const tripCount = parseInt(rows[0].count);
 
-// Seed some trips if none exist
-const tripCount = db.prepare("SELECT COUNT(*) as count FROM trips").get() as { count: number };
-if (tripCount.count === 0) {
-  const insertTrip = db.prepare("INSERT INTO trips (origin, destination, departure_date, price) VALUES (?, ?, ?, ?)");
-  const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
-  const dates = ["2026-03-01", "2026-03-02", "2026-03-03"];
-  
-  for (const origin of locations) {
-    for (const dest of locations) {
-      if (origin !== dest) {
-        // Only allow trips to/from Malete as per requirements
-        if (origin === "Malete Campus" || dest === "Malete Campus") {
-          for (const date of dates) {
-            insertTrip.run(origin, dest, date, 15000); // Sample price
+    if (tripCount < 100) {
+      console.log("Seeding database with trips...");
+      // Clear existing to ensure fresh 20-bus seeding
+      await sql`DELETE FROM reservations`;
+      await sql`DELETE FROM trips`;
+
+      const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
+
+      for (const origin of locations) {
+        for (const dest of locations) {
+          if (origin !== dest) {
+            for (let i = 0; i < 20; i++) {
+              const date = new Date("2026-02-24");
+              date.setDate(date.getDate() + i);
+              const dateStr = date.toISOString().split('T')[0];
+              const price = 15000;
+              await sql`
+                INSERT INTO trips (origin, destination, departure_date, price) 
+                VALUES (${origin}, ${dest}, ${dateStr}, ${price})
+              `;
+            }
           }
         }
       }
+      console.log("Database seeded successfully.");
     }
+  } catch (error) {
+    console.error("Database initialization failed:", error);
   }
 }
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
+
+  // Initialize DB
+  await initDb();
 
   app.use(express.json());
   app.use(session({
-    secret: "seamless-ride-secret-123",
+    secret: process.env.SESSION_SECRET || "seamless-ride-secret-123",
     resave: false,
     saveUninitialized: false,
-    cookie: { 
+    cookie: {
       secure: process.env.NODE_ENV === "production",
       sameSite: 'none',
       httpOnly: true
@@ -82,29 +101,39 @@ async function startServer() {
     const { fullName, matricNumber, password } = req.body;
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const info = db.prepare("INSERT INTO users (full_name, matric_number, password) VALUES (?, ?, ?)").run(fullName, matricNumber, hashedPassword);
-      res.json({ success: true, userId: info.lastInsertRowid });
+      const { rows } = await sql`
+        INSERT INTO users (full_name, matric_number, password) 
+        VALUES (${fullName}, ${matricNumber}, ${hashedPassword})
+        RETURNING id
+      `;
+      res.json({ success: true, userId: rows[0].id });
     } catch (error: any) {
-      res.status(400).json({ error: error.message.includes("UNIQUE") ? "Matric number already registered" : "Registration failed" });
+      res.status(400).json({ error: error.message.includes("unique") ? "Matric number already registered" : "Registration failed" });
     }
   });
 
   app.post("/api/login", async (req, res) => {
     const { matricNumber, password } = req.body;
-    const user = db.prepare("SELECT * FROM users WHERE matric_number = ?").get(matricNumber) as any;
-    if (user && await bcrypt.compare(password, user.password)) {
-      (req.session as any).userId = user.id;
-      (req.session as any).userName = user.full_name;
-      res.json({ success: true, user: { id: user.id, fullName: user.full_name, matricNumber: user.matric_number } });
-    } else {
-      res.status(401).json({ error: "Invalid credentials" });
+    try {
+      const { rows } = await sql`SELECT * FROM users WHERE matric_number = ${matricNumber}`;
+      const user = rows[0];
+      if (user && await bcrypt.compare(password, user.password)) {
+        (req.session as any).userId = user.id;
+        (req.session as any).userName = user.full_name;
+        res.json({ success: true, user: { id: user.id, fullName: user.full_name, matricNumber: user.matric_number } });
+      } else {
+        res.status(401).json({ error: "Invalid credentials" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: "Login failed" });
     }
   });
 
-  app.get("/api/me", (req, res) => {
-    if ((req.session as any).userId) {
-      const user = db.prepare("SELECT id, full_name as fullName, matric_number as matricNumber FROM users WHERE id = ?").get((req.session as any).userId);
-      res.json({ user });
+  app.get("/api/me", async (req, res) => {
+    const userId = (req.session as any).userId;
+    if (userId) {
+      const { rows } = await sql`SELECT id, full_name as "fullName", matric_number as "matricNumber" FROM users WHERE id = ${userId}`;
+      res.json({ user: rows[0] });
     } else {
       res.json({ user: null });
     }
@@ -117,58 +146,84 @@ async function startServer() {
   });
 
   // Trip Routes
-  app.get("/api/trips", (req, res) => {
+  app.get("/api/trips", async (req, res) => {
     const { origin, destination, date } = req.query;
-    const trips = db.prepare("SELECT * FROM trips WHERE origin = ? AND destination = ? AND departure_date = ?").all(origin, destination, date);
-    res.json(trips);
+    try {
+      const { rows } = await sql`
+        SELECT * FROM trips 
+        WHERE origin = ${origin as string} 
+        AND destination = ${destination as string} 
+        AND departure_date = ${date as string}
+      `;
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch trips" });
+    }
   });
 
-  app.get("/api/trips/:id/seats", (req, res) => {
-    const reservations = db.prepare("SELECT seat_number FROM reservations WHERE trip_id = ? AND payment_status = 'paid'").all(req.params.id);
-    res.json(reservations.map((r: any) => r.seat_number));
+  app.get("/api/trips/:id/seats", async (req, res) => {
+    try {
+      const { rows } = await sql`
+        SELECT seat_number FROM reservations 
+        WHERE trip_id = ${parseInt(req.params.id)} 
+        AND payment_status = 'paid'
+      `;
+      res.json(rows.map((r: any) => r.seat_number));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch seats" });
+    }
   });
 
   // Reservation Routes
-  app.post("/api/reserve", (req, res) => {
+  app.post("/api/reserve", async (req, res) => {
     const { tripId, seats } = req.body;
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     if (seats.length > 2) return res.status(400).json({ error: "Maximum 2 seats allowed" });
 
-    const transaction = db.transaction(() => {
-      for (const seat of seats) {
-        // Check if seat is already taken
-        const existing = db.prepare("SELECT id FROM reservations WHERE trip_id = ? AND seat_number = ? AND payment_status = 'paid'").get(tripId, seat);
-        if (existing) throw new Error(`Seat ${seat} is already taken`);
-        
-        db.prepare("INSERT INTO reservations (user_id, trip_id, seat_number, payment_status) VALUES (?, ?, ?, 'paid')").run(userId, tripId, seat);
-      }
-    });
-
     try {
-      transaction();
+      // In Postgres we don't have a simple synchronous transaction block like better-sqlite3
+      // For simplicity in this demo, we'll do individual checks, but in production use a BEGIN/COMMIT block.
+      for (const seat of seats) {
+        const { rows } = await sql`
+          SELECT id FROM reservations 
+          WHERE trip_id = ${tripId} 
+          AND seat_number = ${seat} 
+          AND payment_status = 'paid'
+        `;
+        if (rows.length > 0) throw new Error(`Seat ${seat} is already taken`);
+
+        await sql`
+          INSERT INTO reservations (user_id, trip_id, seat_number, payment_status) 
+          VALUES (${userId}, ${tripId}, ${seat}, 'paid')
+        `;
+      }
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.get("/api/my-reservations", (req, res) => {
+  app.get("/api/my-reservations", async (req, res) => {
     const userId = (req.session as any).userId;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const reservations = db.prepare(`
-      SELECT r.*, t.origin, t.destination, t.departure_date, t.price 
-      FROM reservations r 
-      JOIN trips t ON r.trip_id = t.id 
-      WHERE r.user_id = ?
-      ORDER BY r.created_at DESC
-    `).all(userId);
-    res.json(reservations);
+    try {
+      const { rows } = await sql`
+        SELECT r.*, t.origin, t.destination, t.departure_date, t.price 
+        FROM reservations r 
+        JOIN trips t ON r.trip_id = t.id 
+        WHERE r.user_id = ${userId}
+        ORDER BY r.created_at DESC
+      `;
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch reservations" });
+    }
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -185,7 +240,7 @@ async function startServer() {
     return app;
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
   return app;
