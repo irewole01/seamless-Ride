@@ -46,31 +46,36 @@ async function initDb() {
     const { rows } = await sql`SELECT COUNT(*) as count FROM trips`;
     const tripCount = parseInt(rows[0].count);
 
-    if (tripCount < 100) {
+    if (tripCount === 0) {
       console.log("Seeding database with trips...");
-      // Clear existing to ensure fresh 20-bus seeding
-      await sql`DELETE FROM reservations`;
-      await sql`DELETE FROM trips`;
-
       const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
+      const tripsToInsert = [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       for (const origin of locations) {
         for (const dest of locations) {
           if (origin !== dest) {
             for (let i = 0; i < 20; i++) {
-              const date = new Date("2026-02-24");
-              date.setDate(date.getDate() + i);
+              const date = new Date(today);
+              date.setDate(today.getDate() + i);
               const dateStr = date.toISOString().split('T')[0];
-              const price = 15000;
-              await sql`
-                INSERT INTO trips (origin, destination, departure_date, price) 
-                VALUES (${origin}, ${dest}, ${dateStr}, ${price})
-              `;
+              tripsToInsert.push({ origin, dest, dateStr, price: 15000 });
             }
           }
         }
       }
-      console.log("Database seeded successfully.");
+
+      // Insert in chunks to avoid hitting Postgres limits or timeouts
+      for (let i = 0; i < tripsToInsert.length; i += 20) {
+        const chunk = tripsToInsert.slice(i, i + 20);
+        await Promise.all(chunk.map(t =>
+          sql`INSERT INTO trips (origin, destination, departure_date, price) VALUES (${t.origin}, ${t.dest}, ${t.dateStr}, ${t.price})`
+        ));
+      }
+
+      console.log(`Database seeded successfully with ${tripsToInsert.length} trips.`);
     }
   } catch (error) {
     console.error("Database initialization failed:", error);
