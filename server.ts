@@ -12,9 +12,18 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseUrl = (process.env.SUPABASE_URL || "").trim();
+const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("CRITICAL: Supabase environment variables are missing!");
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false
+  }
+});
 
 const app = express();
 
