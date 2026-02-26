@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { sql } from "@vercel/postgres";
+import { createClient } from "@supabase/supabase-js";
 import session from "express-session";
 import bcrypt from "bcryptjs";
 import path from "path";
@@ -12,43 +12,57 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const app = express();
 
-// --- Database Initialization ---
-// We create tables IMMEDIATELY on script load so they are ready
-const initTables = async () => {
+async function seedTripsIfEmpty() {
   try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        full_name TEXT NOT NULL,
-        matric_number TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-      );
-    `;
-    await sql`
-      CREATE TABLE IF NOT EXISTS trips (
-        id SERIAL PRIMARY KEY,
-        origin TEXT NOT NULL,
-        destination TEXT NOT NULL,
-        departure_date TEXT NOT NULL,
-        price INTEGER NOT NULL
-      );
-    `;
-    await sql`
-      CREATE TABLE IF NOT EXISTS reservations (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        trip_id INTEGER NOT NULL,
-        seat_number INTEGER NOT NULL,
-        payment_status TEXT DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    console.log("Tables verified/created.");
-  } catch (err) {
-    console.error("Critical: Table creation failed", err);
+    const { count, error: countError } = await supabase
+      .from('trips')
+      .select('*', { count: 'exact', head: true });
+
+    if (count === 0) {
+      console.log("Seeding database with trips...");
+      const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const newTrips = [];
+      for (const origin of locations) {
+        for (const dest of locations) {
+          if (origin !== dest) {
+            for (let i = 0; i < 7; i++) {
+              const date = new Date(today);
+              date.setDate(today.getDate() + i);
+              const dateStr = date.toISOString().split('T')[0];
+              newTrips.push({
+                origin,
+                destination: dest,
+                departure_date: dateStr,
+                price: origin === "Malete Campus" ? 12000 : 15000
+              });
+            }
+          }
+        }
+      }
+      const { error } = await supabase.from('trips').insert(newTrips);
+      if (error) console.error("Seeding error:", error);
+      else console.log("Seeding successful!");
+    }
+  } catch (e) {
+    console.error("Background seeding failed", e);
   }
+}
+
+// --- Database Initialization ---
+// We assume tables are created via Supabase Dashboard/MCP as raw SQL in Supabase is restricted via client
+// But we keep the logic structure for compatibility
+const initTables = async () => {
+  console.log("Database connection initialized via Supabase.");
+  await seedTripsIfEmpty();
 };
 
 // Background init
@@ -80,12 +94,14 @@ app.post("/api/register", async (req, res) => {
   }
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const { rows } = await sql`
-      INSERT INTO users (full_name, matric_number, password) 
-      VALUES (${fullName}, ${matricNumber}, ${hashedPassword})
-      RETURNING id
-    `;
-    res.json({ success: true, userId: rows[0].id });
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ full_name: fullName, matric_number: matricNumber, password: hashedPassword }])
+      .select('id')
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, userId: data.id });
   } catch (error: any) {
     console.error("Registration error:", error);
     const msg = error.message.toLowerCase();
@@ -100,8 +116,12 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   const { matricNumber, password } = req.body;
   try {
-    const { rows } = await sql`SELECT * FROM users WHERE matric_number = ${matricNumber}`;
-    const user = rows[0];
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('matric_number', matricNumber)
+      .single();
+
     if (user && await bcrypt.compare(password, user.password)) {
       (req.session as any).userId = user.id;
       (req.session as any).userName = user.full_name;
@@ -119,8 +139,17 @@ app.get("/api/me", async (req, res) => {
   const userId = (req.session as any).userId;
   if (userId) {
     try {
-      const { rows } = await sql`SELECT id, full_name as "fullName", matric_number as "matricNumber" FROM users WHERE id = ${userId}`;
-      res.json({ user: rows[0] });
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('id, full_name, matric_number')
+        .eq('id', userId)
+        .single();
+
+      if (user) {
+        res.json({ user: { id: user.id, fullName: user.full_name, matricNumber: user.matric_number } });
+      } else {
+        res.json({ user: null });
+      }
     } catch (err) {
       res.json({ user: null });
     }
@@ -142,62 +171,40 @@ app.get("/api/trips", async (req, res) => {
     return res.status(400).json({ error: "Missing search criteria" });
   }
   try {
-    const { rows } = await sql`
-      SELECT * FROM trips 
-      WHERE origin = ${origin as string} 
-      AND destination = ${destination as string} 
-      AND departure_date = ${date as string}
-      LIMIT 50
-    `;
+    const { data: trips, error } = await supabase
+      .from('trips')
+      .select('*')
+      .eq('origin', origin as string)
+      .eq('destination', destination as string)
+      .eq('departure_date', date as string)
+      .limit(2);
+
+    if (error) throw error;
 
     // If no trips found, run a quick seeding in background for the next request
-    if (rows.length === 0) {
+    if (!trips || trips.length === 0) {
       seedTripsIfEmpty();
     }
 
-    res.json(rows);
+    res.json(trips || []);
   } catch (err) {
     console.error("Fetch trips error:", err);
     res.status(500).json({ error: "Could not retrieve trips. Connection error." });
   }
 });
 
-const seedTripsIfEmpty = async () => {
-  try {
-    const { rows: countRows } = await sql`SELECT COUNT(*) as count FROM trips`;
-    if (parseInt(countRows[0].count) === 0) {
-      console.log("Seeding in background...");
-      const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
 
-      // Just seed a few for now to be fast
-      for (const origin of locations) {
-        for (const dest of locations) {
-          if (origin !== dest) {
-            for (let i = 0; i < 5; i++) { // Smaller initial batch
-              const date = new Date(today);
-              date.setDate(today.getDate() + i);
-              const dateStr = date.toISOString().split('T')[0];
-              await sql`INSERT INTO trips (origin, destination, departure_date, price) VALUES (${origin}, ${dest}, ${dateStr}, 15000)`;
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Background seeding failed", e);
-  }
-};
 
 app.get("/api/trips/:id/seats", async (req, res) => {
   try {
-    const { rows } = await sql`
-      SELECT seat_number FROM reservations 
-      WHERE trip_id = ${parseInt(req.params.id)} 
-      AND payment_status = 'paid'
-    `;
-    res.json(rows.map((r: any) => r.seat_number));
+    const { data: reservations, error } = await supabase
+      .from('reservations')
+      .select('seat_number')
+      .eq('trip_id', parseInt(req.params.id))
+      .eq('payment_status', 'paid');
+
+    if (error) throw error;
+    res.json((reservations || []).map((r: any) => r.seat_number));
   } catch (err) {
     console.error("Fetch seats error:", err);
     res.status(500).json({ error: "Could not fetch availability" });
@@ -214,18 +221,23 @@ app.post("/api/reserve", async (req, res) => {
 
   try {
     for (const seat of seats) {
-      const { rows } = await sql`
-        SELECT id FROM reservations 
-        WHERE trip_id = ${tripId} 
-        AND seat_number = ${seat} 
-        AND payment_status = 'paid'
-      `;
-      if (rows.length > 0) throw new Error(`Seat ${seat} is already booked`);
+      // Check if already booked
+      const { data: existing, error: checkError } = await supabase
+        .from('reservations')
+        .select('id')
+        .eq('trip_id', tripId)
+        .eq('seat_number', seat)
+        .eq('payment_status', 'paid')
+        .maybeSingle();
 
-      await sql`
-        INSERT INTO reservations (user_id, trip_id, seat_number, payment_status) 
-        VALUES (${userId}, ${tripId}, ${seat}, 'paid')
-      `;
+      if (checkError) throw checkError;
+      if (existing) throw new Error(`Seat ${seat} is already booked`);
+
+      const { error: insertError } = await supabase
+        .from('reservations')
+        .insert([{ user_id: userId, trip_id: tripId, seat_number: seat, payment_status: 'paid' }]);
+
+      if (insertError) throw insertError;
     }
     res.json({ success: true });
   } catch (error: any) {
@@ -239,14 +251,32 @@ app.get("/api/my-reservations", async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    const { rows } = await sql`
-      SELECT r.*, t.origin, t.destination, t.departure_date, t.price 
-      FROM reservations r 
-      JOIN trips t ON r.trip_id = t.id 
-      WHERE r.user_id = ${userId}
-      ORDER BY r.created_at DESC
-    `;
-    res.json(rows);
+    const { data: reservations, error } = await supabase
+      .from('reservations')
+      .select(`
+        *,
+        trips (
+          origin,
+          destination,
+          departure_date,
+          price
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Flatten the result to match existing frontend expectations
+    const flattened = (reservations || []).map((r: any) => ({
+      ...r,
+      origin: r.trips.origin,
+      destination: r.trips.destination,
+      departure_date: r.trips.departure_date,
+      price: r.trips.price
+    }));
+
+    res.json(flattened);
   } catch (err) {
     console.error("Fetch reservations error:", err);
     res.status(500).json({ error: "Failed to load reservations" });
