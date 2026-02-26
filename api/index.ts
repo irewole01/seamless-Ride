@@ -17,7 +17,11 @@ if (!supabaseUrl || !supabaseKey) {
     console.error("CRITICAL: Supabase environment variables are missing!");
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+        persistSession: false
+    }
+});
 
 const app = express();
 
