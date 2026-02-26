@@ -141,7 +141,13 @@ export default function App() {
       }
     } catch (err: any) {
       console.error("Search error:", err);
-      setError(`Search failed: ${err.message || "Unknown error"}`);
+      // Try to show detailed debug info if the server provided it
+      let message = err.message || "Unknown error";
+      if (err.debug) message += ` (${err.debug})`;
+      if (err.hasUrl === false) message += " [URL Missing]";
+      if (err.hasKey === false) message += " [Key Missing]";
+
+      setError(`Search failed: ${message}`);
     } finally {
       setLoading(false);
     }
