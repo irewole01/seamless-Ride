@@ -15,6 +15,8 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 if (!supabaseUrl || !supabaseKey) {
     console.error("CRITICAL: Supabase environment variables are missing!");
+} else {
+    console.log(`Supabase Client initialized with URL: ${supabaseUrl.substring(0, 15)}...`);
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey, {
