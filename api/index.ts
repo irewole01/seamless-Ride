@@ -4,9 +4,8 @@ import session from "express-session";
 import bcrypt from "bcryptjs";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
+// No dotenv.config() needed for Vercel production to avoid file lookups
 
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,10 +174,13 @@ app.get("/api/trips", async (req, res) => {
         if (error) throw error;
         res.json(trips || []);
     } catch (err: any) {
-        console.error("Fetch trips error:", err.message || err);
+        const errorMsg = err.message || "Unknown connection error";
+        console.error("Fetch trips error:", errorMsg);
         res.status(500).json({
             error: "Could not retrieve trips. Connection error.",
-            details: process.env.NODE_ENV === "development" ? err.message : undefined
+            debug: `Err: ${errorMsg.substring(0, 50)}`,
+            hasUrl: !!process.env.SUPABASE_URL,
+            hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
         });
     }
 });
