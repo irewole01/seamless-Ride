@@ -13,6 +13,11 @@ const __dirname = path.dirname(__filename);
 
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+if (!supabaseUrl || !supabaseKey) {
+    console.error("CRITICAL: Supabase environment variables are missing!");
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
@@ -169,9 +174,12 @@ app.get("/api/trips", async (req, res) => {
 
         if (error) throw error;
         res.json(trips || []);
-    } catch (err) {
-        console.error("Fetch trips error:", err);
-        res.status(500).json({ error: "Could not retrieve trips. Connection error." });
+    } catch (err: any) {
+        console.error("Fetch trips error:", err.message || err);
+        res.status(500).json({
+            error: "Could not retrieve trips. Connection error.",
+            details: process.env.NODE_ENV === "development" ? err.message : undefined
+        });
     }
 });
 
