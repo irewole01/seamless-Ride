@@ -1,0 +1,9 @@
+﻿node.exe : Vercel CLI 50.23.2
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Vercel CLI 50.23.2:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Loading scopesΓÇª
+Error: The specified token is not valid. Use `vercel login` to generate a new token.
