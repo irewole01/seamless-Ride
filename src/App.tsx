@@ -51,21 +51,11 @@ interface Reservation {
 
 const Logo = () => (
   <div className="flex items-center gap-3">
-    <div className="relative">
-      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg border border-slate-100">
-        <Bus className="text-slate-800 w-7 h-7" />
-      </div>
-      <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm">
-        <span className="text-white text-[10px]">★</span>
-      </div>
-    </div>
-    <div className="flex flex-col">
-      <div className="flex items-baseline gap-1">
-        <span className="text-xl font-black tracking-tighter text-slate-900">SEAMLESS</span>
-        <span className="text-xl font-black tracking-tighter text-emerald-500 italic">RIDE</span>
-      </div>
-      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] -mt-1">Logistics by iRexihub</p>
-    </div>
+    <img
+      src="/favicon.png"
+      alt="Seamless Ride Logo"
+      className="h-14 w-auto object-contain drop-shadow-sm filter contrast-125 saturate-110"
+    />
   </div>
 );
 
