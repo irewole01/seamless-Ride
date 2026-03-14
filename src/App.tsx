@@ -110,13 +110,14 @@ export default function App() {
   };
 
   const searchTrips = async () => {
-    if (!bookingData.origin || !bookingData.destination) {
-      setError("Please select both origin and destination");
+    if (!bookingData.origin) {
+      setError("Please select an origin");
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/trips?origin=${bookingData.origin}&destination=${bookingData.destination}&date=${bookingData.date}`);
+      const destParam = bookingData.destination ? `&destination=${bookingData.destination}` : '';
+      const res = await fetch(`/api/trips?origin=${bookingData.origin}${destParam}&date=${bookingData.date}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -348,7 +349,7 @@ export default function App() {
                       onChange={(e) => setBookingData({ ...bookingData, destination: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                     >
-                      <option value="">Select Destination</option>
+                      <option value="">Any Destination</option>
                       <option value="Malete Campus">Malete Campus</option>
                       <option value="Lagos">Lagos</option>
                       <option value="Abuja">Abuja</option>

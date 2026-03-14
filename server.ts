@@ -210,16 +210,21 @@ app.post("/api/logout", (req, res) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 app.get("/api/trips", async (req, res) => {
   const { origin, destination, date } = req.query;
-  if (!origin || !destination || !date) {
+  if (!origin || !date) {
     return res.status(400).json({ error: "Missing search criteria" });
   }
   try {
-    const { data: trips, error } = await supabase
+    let query = supabase
       .from("trips")
       .select("*")
       .eq("origin", origin as string)
-      .eq("destination", destination as string)
       .eq("departure_date", date as string);
+
+    if (destination) {
+      query = query.eq("destination", destination as string);
+    }
+
+    const { data: trips, error } = await query;
 
     if (error) throw error;
 
