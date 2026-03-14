@@ -220,7 +220,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-screen pb-20">
+    <div className="relative min-h-screen pb-40">
       <div className="brick-wall" />
 
       {/* Global Loading Overlay */}
@@ -793,8 +793,18 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="absolute bottom-0 w-full py-6 text-center text-slate-400 text-xs font-medium">
-        <p>© 2026 SEAMLESS RIDE. A daughter company of iRexihub by Irewole.</p>
+      <footer className="absolute bottom-0 w-full">
+        <div className="bg-emerald-50 border-t border-b border-emerald-100 py-3 px-4 shadow-sm w-full">
+          <div className="max-w-4xl mx-auto flex items-start sm:items-center gap-3 text-emerald-800 text-sm font-medium">
+            <AlertCircle size={20} className="shrink-0 text-emerald-600 mt-0.5 sm:mt-0" />
+            <p className="text-left">
+              Each passenger is entitled to a complimentary luggage allowance of 8kg. To ensure comfort and safety for all travelers, any additional weight up to a maximum of 8kg may incur a nominal fee, payable directly to the driver.
+            </p>
+          </div>
+        </div>
+        <div className="py-6 text-center text-slate-400 text-xs font-medium bg-white/50 backdrop-blur-sm w-full">
+          <p>© 2026 SEAMLESS RIDE. A daughter company of iRexihub by Irewole.</p>
+        </div>
       </footer>
     </div>
   );

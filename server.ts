@@ -61,21 +61,24 @@ app.use("/api", (req, res, next) => {
 // ── Seed Helper ──
 async function seedTripsIfEmpty() {
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split("T")[0];
+
     const { count } = await supabase
       .from("trips")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .gte("departure_date", todayStr);
 
     if (count === 0) {
-      console.log("Seeding database with trips...");
+      console.log("Seeding database with trips (none found for today or future)...");
       const locations = ["Malete Campus", "Lagos", "Abuja", "Ibadan"];
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
 
       const newTrips: any[] = [];
       for (const origin of locations) {
         for (const dest of locations) {
           if (origin !== dest) {
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < 8; i++) {
               const date = new Date(today);
               date.setDate(today.getDate() + i);
               const dateStr = date.toISOString().split("T")[0];
